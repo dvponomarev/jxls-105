@@ -1,0 +1,112 @@
+<document>
+    <properties>
+      <author email="leonid.vysochyn@gmail.com">Leonid Vysochyn</author>
+      <title>Customizing jXLS output</title>
+    </properties>
+	<body>
+        <section name="Overview" id="overview">
+            <p>In this section you will see how you can customize result workbook during XLS transformation.
+            For example you may want to change style of some cells dynamically depending on exported data.
+            Or you may want to change values of some bean properties for example to scale them or do something else.</p>
+            <p>Many of this can be done using Excel conditional formatting or macros. jXLS provides alternative way
+            to do this with custom cell and row processors.</p>
+            <!--<warning>Custom Cell Processor section is DEPRECATED this time. With introducing full JEXL expressions-->
+            <!--support some of the CellProcessor implementations will no longer work correctly. If you need to apply-->
+            <!--custom formatting based on some bean properies values you may use jx:forEach/jx:if tags.-->
+            <!--Next jXLS releases probably will change current Cell Processors support to be more efficient and useful. </warning>-->
+        </section>
+
+        <section id="customRowProcessor" name="Row Processor">
+			<p>You may implement <code>RowProcessor</code> interface if you need to set style for some row
+                dynamically. The interface contains single method
+                <code>void processRow(Row row, Map namedCells)</code>.
+            XLSTransformer invokes this method for every registered CellProcessor and passes to it two parameters:
+            </p>
+			<ul>
+				<li>
+					<code>Row row</code> - contains all information about the current processed row
+                </li>
+				<li>
+					<code>Map namedCells</code> - contains all named cells that were found during processing of previous cells
+                </li>
+			</ul>
+			<p>With <code>Row</code> object you have access to related <a href="http://poi.apache.org/">POI</a>
+                objects to modify cell style if required. </p>
+			<p> Let's take a look at <code>StyleRowProcessor</code> class from <a href="../samples/dynamicstylesample.html">Row Style sample</a>.
+                This class allows to highlight some rows containing employee information for all employees with payment greater than 2000.
+            </p>
+            <source>
+public class StyleRowProcessor implements RowProcessor {
+    String collectionName;
+    String styleCellLabel = "customRow";
+
+    public StyleRowProcessor(String collectionName) {
+        this.collectionName = collectionName;
+    }
+
+    public void processRow(Row row, Map namedCells) {
+        // check if processed row has a parent row
+        if( row.getParentRow()!=null ){
+            // Processed row has parent row. It means we are processing some collection item
+            RowCollection rowCollection = row.getParentRow().getRowCollectionByCollectionName( collectionName );
+            if( rowCollection.getIterateObject() instanceof Employee){
+                Employee employee = (Employee) rowCollection.getIterateObject();
+                if( employee.getPayment().doubleValue() >= 2000 ){
+                    if( namedCells.containsKey( styleCellLabel ) ){
+                        Cell customCell = (Cell) namedCells.get( styleCellLabel );
+                        for (int i = 0; i &lt; row.getCells().size(); i++) {
+                            Cell cell = (Cell) row.getCells().get(i);
+                            org.apache.poi.ss.usermodel.Cell hssfCell = cell.getHssfCell();
+                            if( hssfCell!=null ){
+                                copyStyle( row.getHssfWorkbook(), customCell.getHssfCell(), hssfCell );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+            </source>
+            <p>You can see that in <code>processRow()</code> method we check does current row have parent row </p>
+            <source>
+// check if processed row has a parent row
+if( row.getParentRow()!=null ){
+....
+            </source>
+            <p>The point is that for every row that is being processed as collection item <code>XLSTransformer</code>
+            sets <code>parentRow</code> property with information about base row containing current collection details.</p>
+            <p>Then we get <code>RowCollection</code> object related to our collection in question using
+                <code>getRowCollectionByCollectionName( collectionName )</code> method of <code>Row</code> class</p>
+            <source>
+// Processed row has parent row. It means we are processing some collection item
+RowCollection rowCollection = row.getParentRow().getRowCollectionByCollectionName( collectionName );
+            </source>
+            <p>After that we check that current iterated object is of required type and cast current collection item
+                to <code>Employee</code> class. And then we check its payment property</p>
+            <source>
+if( rowCollection.getIterateObject() instanceof Employee){
+    Employee employee = (Employee) rowCollection.getIterateObject();
+    if( employee.getPayment().doubleValue() >= 2000 ){ ... }
+            </source>
+            <p>Then we trying to find named cell with name <code>styleCellLabel</code> that is equal to <code>&quot;customRow&quot;</code></p>
+            <source>
+if( namedCells.containsKey( styleCellLabel ) ){
+    Cell customCell = (Cell) namedCells.get( styleCellLabel );
+            </source>
+            <p>Then we walk through all <code>Cell</code> objects for current row and copy
+            cell style from named cell to current cell</p>
+            <source>
+for (int i = 0; i &lt; row.getCells().size(); i++) {
+    Cell cell = (Cell) row.getCells().get(i);
+    org.apache.poi.ss.usermodel.Cell hssfCell = cell.getHssfCell();
+    if( hssfCell!=null ){
+        copyStyle( row.getHssfWorkbook(), customCell.getHssfCell(), hssfCell );
+    }
+}
+            </source>
+            <p>Method <code>copyStyle(..)</code> is rather simple and just copies cell style from one cell to another.
+            See <a href="../samples/dynamicstylesample.html">Row Style sample</a> for the actual code.</p>
+    </section>
+    </body>
+</document>

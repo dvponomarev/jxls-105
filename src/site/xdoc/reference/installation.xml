@@ -1,0 +1,65 @@
+<document>
+    <properties>
+      <author email="leonid.vysochyn@gmail.com">Leonid Vysochyn</author>
+      <title>Installation</title>
+    </properties>
+	<body>
+		<section id="download" name="Download">
+			<p> You can download the latest release version of <a href="http://jxls.sourceforge.net">jXLS</a> library from
+                <a href="http://sourceforge.net/project/showfiles.php?group_id=141729">sourceforge site</a>
+			</p>
+		</section>
+		<section id="installation" name="Installation">
+			<p> To use jXLS engine you have to put
+                <strong>
+					<code>jxls-core</code>
+				</strong> jar in your classpath.
+            </p>
+            <p>And if you are planning to use jXLS to read XLS files you have to add <strong><code>jxls-reader</code></strong>
+                jar file to your classpath.
+            </p>
+            <p>
+                If you use Maven to build your application you can specify required jXLS modules in your pom.xml as dependencies
+                to allow them to be downloaded from Maven repository
+            </p>
+            <p>The following
+                <a href="ext:jakarta">Apache</a> libraries are also required to be on your classpath.
+            </p>
+			<ul>
+				<li>
+					<a href="http://poi.apache.org/">POI 3.7 or later</a>
+				</li>
+				<li>
+					<a href="http://commons.apache.org/beanutils/">Commons BeanUtils</a>
+				</li>
+				<li>
+					<a href="http://commons.apache.org/collections/">Commons Collections</a>
+				</li>
+                <li>
+                    <a href="http://commons.apache.org/jexl/">Commons JEXL</a>
+                </li>
+				<li>
+					<a href="http://commons.apache.org/logging/">Commons Logging</a>
+				</li>
+				<li>
+					<a href="http://commons.apache.org/digester/">Commons Digester</a>
+				</li>
+			</ul>
+            <p><strong>Note: </strong> jXLS may not work with legacy POI library releases. If you have any issues related to legacy POI api try to use older jXLS releases</p>
+		</section>
+        <section id="buildingFromSource" name="Building from source">
+            <p>You can build jXLS from source code if you need to get the latest changes which are not released yet.
+                You will need Subversion client to get the source code and <a href="http://maven.apache.org/">Apache Maven</a>   to build it.
+            It can be done with such steps</p>
+            <ol>
+                <li>Get the latest jXLS source code from Sourceforge Subversion using the following command
+                    <source>
+                svn co https://jxls.svn.sourceforge.net/svnroot/jxls/trunk jxls
+                    </source>
+                </li>
+                <li>Run following Maven command to build jXLS and install it into your local repository
+                    <source>mvn clean install</source> </li>
+            </ol>
+        </section>
+	</body>
+</document>
