@@ -606,6 +606,7 @@ public final class Util {
             boolean copyStyle) {
         if (copyStyle) {
             newCell.setCellStyle(oldCell.getCellStyle());
+            Util.copyConditionalFormat(oldCell, newCell);
         }
         switch (oldCell.getCellType()) {
         case org.apache.poi.ss.usermodel.Cell.CELL_TYPE_STRING:
@@ -636,12 +637,13 @@ public final class Util {
             String expressionReplacement) {
         if (copyStyle) {
             newCell.setCellStyle(oldCell.getCellStyle());
+            Util.copyConditionalFormat(oldCell, newCell);
         }
         switch (oldCell.getCellType()) {
         case org.apache.poi.ss.usermodel.Cell.CELL_TYPE_STRING:
             String oldValue = oldCell.getRichStringCellValue().getString();
-            newCell.setCellValue(newCell.getSheet().getWorkbook().getCreationHelper().createRichTextString(oldValue.replaceAll(
-                    expressionToReplace, expressionReplacement)));
+            String newValue = Util.replaceExpressions(oldValue, expressionToReplace, expressionReplacement);
+            newCell.setCellValue(newCell.getSheet().getWorkbook().getCreationHelper().createRichTextString(newValue));
             break;
         case org.apache.poi.ss.usermodel.Cell.CELL_TYPE_NUMERIC:
             newCell.setCellValue(oldCell.getNumericCellValue());
@@ -660,6 +662,36 @@ public final class Util {
             break;
         default:
             break;
+        }
+    }
+
+    static String replaceExpressions(String originalExpression, String expressionToReplace, String expressionReplacement) {
+        return originalExpression.replaceAll("(\\$\\{)" + expressionToReplace + "((\\b.*)?\\})", "$1" + expressionReplacement + "$2");
+    }
+
+    public static void copyConditionalFormat(org.apache.poi.ss.usermodel.Cell oldCell, org.apache.poi.ss.usermodel.Cell newCell) {
+        SheetConditionalFormatting           cf    = oldCell.getSheet().getSheetConditionalFormatting();
+        SheetConditionalFormatting           ncf   = newCell.getSheet().getSheetConditionalFormatting();
+        int                                  numCF = cf.getNumConditionalFormattings();
+        ArrayList<ConditionalFormattingRule> rules = new ArrayList<ConditionalFormattingRule>();
+        for (int i = 0; i < numCF; ++i) {
+            ConditionalFormatting f = cf.getConditionalFormattingAt(i);
+            for (CellRangeAddress a : f.getFormattingRanges()) {
+                if (a.getNumberOfCells() != 1 || !a.isInRange(oldCell.getRowIndex(), oldCell.getColumnIndex()))
+                    continue;
+                int numR = f.getNumberOfRules();
+                for (int j = 0; j < numR; ++j) {
+                    try {
+                        rules.add(f.getRule(j));
+                        continue;
+                    } catch (IndexOutOfBoundsException ex) {
+                        // empty catch block
+                    }
+                }
+            }
+        }
+        if (!rules.isEmpty()) {
+            ncf.addConditionalFormatting(new CellRangeAddress[]{new CellRangeAddress(newCell.getRowIndex(), newCell.getRowIndex(), newCell.getColumnIndex(), newCell.getColumnIndex())}, rules.toArray(new ConditionalFormattingRule[0]));
         }
     }
 
@@ -930,6 +962,14 @@ public final class Util {
         }
     }
 
+    public static void copyConditionalFormatting(Sheet destSheet, Sheet srcSheet) {
+        SheetConditionalFormatting cf    = srcSheet.getSheetConditionalFormatting();
+        int                        numCF = cf.getNumConditionalFormattings();
+        for (int i = 0; i < numCF; ++i) {
+            destSheet.getSheetConditionalFormatting().addConditionalFormatting(cf.getConditionalFormattingAt(i));
+        }
+    }
+
     public static void copyPrintSetup(Sheet destSheet, Sheet srcSheet) {
         PrintSetup setup = srcSheet.getPrintSetup();
         if (setup != null) {
@@ -946,15 +986,19 @@ public final class Util {
     }
 
     public static void setPrintArea(Workbook resultWorkbook, int sheetNum) {
-        int maxColumnNum = 0;
+        int maxColumnNum = Integer.MIN_VALUE;
         for (int j = resultWorkbook.getSheetAt(sheetNum).getFirstRowNum(), c = resultWorkbook.getSheetAt(sheetNum).getLastRowNum(); j <= c; j++) {
             org.apache.poi.ss.usermodel.Row row = resultWorkbook.getSheetAt(sheetNum).getRow(j);
             if (row != null) {
-                maxColumnNum = row.getLastCellNum();
+                maxColumnNum = Math.max(maxColumnNum, row.getLastCellNum());
             }
         }
-        resultWorkbook.setPrintArea(sheetNum, 0, maxColumnNum, 0,
-                resultWorkbook.getSheetAt(sheetNum).getLastRowNum());
+        if (maxColumnNum != Integer.MIN_VALUE) {
+            // maxColumnNum is 1-based, and setPrintArea() needs 0-based coordinates,
+            // that's why we subtract 1 here
+            resultWorkbook.setPrintArea(sheetNum, 0, maxColumnNum - 1, 0,
+                                        resultWorkbook.getSheetAt(sheetNum).getLastRowNum());
+        }
     }
 
     protected static final String regexCellRef = "[a-zA-Z]+[0-9]+";
